@@ -24,9 +24,11 @@ export type LogEntry = {
 
   // NLU
   detectedIntent: KnownIntent | 'OUT_OF_DOMAIN'
+  detectedVia: 'regex' | 'transformer' | 'ood'
   extractedSlots: Partial<Slots>
   missedSlots: (keyof Slots)[]
-  confidence: 0 | 1
+  confidence: number
+  transformerScore: number | null
   wer: number
   referenceText: string
 

@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSpeechRecognition } from './useSpeechRecognition'
 import { useEditorActions } from './useEditorActions'
-import { parseIntent } from '../core/nlu/IntentMatcher'
+import { parseIntentAsync } from '../core/nlu/IntentMatcher'
+import { preloadTransformerModel } from '../core/nlu/TransformerFallback'
 import { createLogEntry } from '../core/logger/SessionLogger'
 import { useEditorStore } from '../store/editorStore'
 import { useSettingsStore } from '../store/settingsStore'
@@ -27,11 +28,18 @@ export function useVoiceCommand(lang: SupportedLang) {
   const [lastParseResult, setLastParseResult] = useState<ParseResult | null>(null)
   const [lastCommandFeedback, setLastCommandFeedback] = useState<CommandFeedback>(null)
 
+  // Фоновая загрузка модели через 4 секунды после монтирования
+  useEffect(() => {
+    const t = setTimeout(preloadTransformerModel, 4000)
+    return () => clearTimeout(t)
+  }, [])
+
   const handleFinalResult = useCallback(
-    ({ transcript, latencyMs }: { transcript: string; latencyMs: number }) => {
+    async ({ transcript, latencyMs }: { transcript: string; latencyMs: number }) => {
       setLastTranscript(transcript)
 
-      const parseResult = parseIntent(transcript, lang)
+      // Cascade: regex → transformer (если OOD)
+      const parseResult = await parseIntentAsync(transcript, lang)
       setLastParseResult(parseResult)
 
       let actionResult: ActionResult
@@ -56,9 +64,7 @@ export function useVoiceCommand(lang: SupportedLang) {
         hintUsed: session.hintUsed,
         rawTranscript: transcript,
         latencyMs,
-        detectedIntent: parseResult.intent,
-        extractedSlots: parseResult.intent === 'OUT_OF_DOMAIN' ? {} : parseResult.slots,
-        confidence: parseResult.confidence,
+        parseResult,
         actionResult,
         elementCount: editorStore.elements.length,
         selectedElementId: editorStore.selectedId,
@@ -66,15 +72,12 @@ export function useVoiceCommand(lang: SupportedLang) {
       })
       session.addLogEntry(entry)
 
-      // Авто-проверка завершения задания по состоянию редактора
       if (actionResult === 'success') {
         const scenario = SCENARIOS[session.scenario]
         const task = scenario.tasks[session.currentTaskIdx]
         if (task?.completionCheck) {
           const edState = { elements: editorStore.elements, selectedId: editorStore.selectedId }
-          if (task.completionCheck(edState)) {
-            session.markTaskComplete()
-          }
+          if (task.completionCheck(edState)) session.markTaskComplete()
         }
       }
     },

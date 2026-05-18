@@ -26,6 +26,9 @@ export type Slots = {
   textAlign: 'left' | 'center' | 'right'
 }
 
+export type DetectedVia = 'regex' | 'transformer' | 'ood'
+
 export type ParseResult =
-  | { intent: KnownIntent; slots: Partial<Slots>; confidence: 1 }
-  | { intent: 'OUT_OF_DOMAIN'; slots: Record<string, never>; confidence: 0 }
+  | { intent: KnownIntent; slots: Partial<Slots>; confidence: 1; detectedVia: 'regex' }
+  | { intent: KnownIntent; slots: Partial<Slots>; confidence: number; detectedVia: 'transformer'; transformerScore: number }
+  | { intent: 'OUT_OF_DOMAIN'; slots: Record<string, never>; confidence: 0; detectedVia: 'ood'; transformerScore?: number }

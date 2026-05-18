@@ -10,7 +10,7 @@ const LANG_MAP: Record<SupportedLang, string> = {
 
 type UseSpeechRecognitionOptions = {
   lang: SupportedLang
-  onFinalResult: (result: SpeechResult) => void
+  onFinalResult: (result: SpeechResult) => void | Promise<void>
 }
 
 export function useSpeechRecognition({ lang, onFinalResult }: UseSpeechRecognitionOptions) {

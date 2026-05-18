@@ -1,5 +1,6 @@
 import type { LogEntry } from './types'
 import type { KnownIntent, Slots, SupportedLang } from '../nlu/types'
+import type { ParseResult } from '../nlu/types'
 import { calculateWER, getReferenceText } from './MetricsCalculator'
 
 export type CreateEntryParams = {
@@ -15,9 +16,7 @@ export type CreateEntryParams = {
   rawTranscript: string
   latencyMs: number
 
-  detectedIntent: KnownIntent | 'OUT_OF_DOMAIN'
-  extractedSlots: Partial<Slots>
-  confidence: 0 | 1
+  parseResult: ParseResult
 
   actionResult: 'success' | 'fail' | 'ood'
   elementCount: number
@@ -27,21 +26,27 @@ export type CreateEntryParams = {
 
 export function createLogEntry(p: CreateEntryParams): LogEntry {
   const words = p.rawTranscript.trim().split(/\s+/).filter(Boolean)
+  const { parseResult } = p
+
+  const detectedIntent = parseResult.intent
+  const detectedVia = parseResult.detectedVia
+  const extractedSlots = detectedIntent === 'OUT_OF_DOMAIN' ? {} : parseResult.slots
+  const confidence = parseResult.confidence
+  const transformerScore = 'transformerScore' in parseResult ? (parseResult.transformerScore ?? null) : null
 
   let wer = 0
   let referenceText = ''
-  if (p.detectedIntent !== 'OUT_OF_DOMAIN') {
-    referenceText = getReferenceText(p.detectedIntent, p.lang)
+  if (detectedIntent !== 'OUT_OF_DOMAIN') {
+    referenceText = getReferenceText(detectedIntent, p.lang)
     wer = calculateWER(p.rawTranscript, referenceText)
   }
 
-  // Определяем пропущенные слоты (expected slots for intent but not extracted)
-  const expectedSlots = getExpectedSlots(p.detectedIntent)
+  const expectedSlots = getExpectedSlots(detectedIntent)
   const missedSlots = expectedSlots.filter(
-    (s) => !(s in p.extractedSlots) || p.extractedSlots[s as keyof Slots] === undefined,
+    (s) => !(s in extractedSlots) || extractedSlots[s as keyof Slots] === undefined,
   ) as (keyof Slots)[]
 
-  const errorType = resolveErrorType(p.detectedIntent, p.actionResult, missedSlots)
+  const errorType = resolveErrorType(detectedIntent, p.actionResult, missedSlots)
 
   return {
     participantId: p.participantId,
@@ -57,10 +62,12 @@ export function createLogEntry(p: CreateEntryParams): LogEntry {
     rawTranscript: p.rawTranscript,
     transcriptWordCount: words.length,
     latencyMs: p.latencyMs,
-    detectedIntent: p.detectedIntent,
-    extractedSlots: p.extractedSlots,
+    detectedIntent,
+    detectedVia,
+    extractedSlots,
     missedSlots,
-    confidence: p.confidence,
+    confidence,
+    transformerScore,
     wer,
     referenceText,
     actionResult: p.actionResult,
