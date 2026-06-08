@@ -11,15 +11,19 @@ const LANG_MAP: Record<SupportedLang, string> = {
 type UseSpeechRecognitionOptions = {
   lang: SupportedLang
   onFinalResult: (result: SpeechResult) => void | Promise<void>
+  onRecognitionError?: (error: string) => void
 }
 
-export function useSpeechRecognition({ lang, onFinalResult }: UseSpeechRecognitionOptions) {
+export function useSpeechRecognition({ lang, onFinalResult, onRecognitionError }: UseSpeechRecognitionOptions) {
   const [state, setState] = useState<RecognizerState>('idle')
   const [interimTranscript, setInterimTranscript] = useState('')
   const isSupported = isSpeechRecognitionSupported()
 
   const onFinalRef = useRef(onFinalResult)
   onFinalRef.current = onFinalResult
+
+  const onErrorRef = useRef(onRecognitionError)
+  onErrorRef.current = onRecognitionError
 
   const recognizerRef = useRef<SpeechRecognizer | null>(null)
 
@@ -42,6 +46,8 @@ export function useSpeechRecognition({ lang, onFinalResult }: UseSpeechRecogniti
       onError: (err) => {
         console.warn('ASR error:', err)
         setState('idle')
+        setInterimTranscript('')
+        onErrorRef.current?.(err)
       },
     })
 

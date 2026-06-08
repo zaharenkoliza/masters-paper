@@ -5,6 +5,9 @@ import {
   normalizeSizeDirection,
   normalizeIndex,
   normalizeTextAlign,
+  normalizeMoveDirection,
+  normalizeStylePreset,
+  normalizeGroupSize,
   extractTextContent,
 } from '../normalizers'
 
@@ -18,6 +21,54 @@ export const enPatterns: IntentPattern[] = [
     intent: 'UNDO',
     pattern: /\bundo\b|\brevert\b|go\s+back|step\s+back/i,
     extractSlots: () => ({}),
+  },
+
+  // --- Grouping ---
+  {
+    intent: 'UNGROUP_ELEMENT',
+    pattern: /\bungroup\b|break\s+(the\s+|this\s+)?group|disband|remove.*from.*group/i,
+    extractSlots: () => ({}),
+  },
+  {
+    intent: 'GROUP_ELEMENTS',
+    pattern: /\bgroup\b.*\b(elements?|them|these|last)\b|combine.*group/i,
+    extractSlots: (text) => {
+      const slots: ReturnType<IntentPattern['extractSlots']> = {}
+      const size = normalizeGroupSize(text, 'en')
+      if (size !== undefined) slots.groupSize = size
+      return slots
+    },
+  },
+
+  // --- Duplicate ---
+  {
+    intent: 'DUPLICATE_ELEMENT',
+    pattern: /\bduplicate\b|\bclone\b|\bcopy\b/i,
+    extractSlots: () => ({}),
+  },
+
+  // --- Move ---
+  {
+    intent: 'MOVE_ELEMENT',
+    pattern: /\bmove\b|\bshift\b|\breposition\b|\bdrag\b/i,
+    extractSlots: (text) => {
+      const slots: ReturnType<IntentPattern['extractSlots']> = {}
+      const dir = normalizeMoveDirection(text, 'en')
+      if (dir) slots.moveDirection = dir
+      return slots
+    },
+  },
+
+  // --- Style presets ---
+  {
+    intent: 'APPLY_STYLE_PRESET',
+    pattern: /(style|format).*?(heading|title|accent|subtle|muted|highlight)|(heading|title|accent|subtle|muted|highlight)\s+style/i,
+    extractSlots: (text) => {
+      const slots: ReturnType<IntentPattern['extractSlots']> = {}
+      const preset = normalizeStylePreset(text, 'en')
+      if (preset) slots.stylePreset = preset
+      return slots
+    },
   },
 
   // --- Font formatting ---

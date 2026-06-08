@@ -35,6 +35,7 @@ export function createElement(type: ElementType, slots: Partial<Slots>): CanvasE
     fontWeight: 'normal',
     fontStyle: 'normal',
     textAlign: 'left',
+    groupId: null,
     createdAt: Date.now(),
   }
 }

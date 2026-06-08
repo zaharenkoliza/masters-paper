@@ -5,6 +5,9 @@ import {
   normalizeSizeDirection,
   normalizeIndex,
   normalizeTextAlign,
+  normalizeMoveDirection,
+  normalizeStylePreset,
+  normalizeGroupSize,
   extractTextContent,
 } from '../normalizers'
 
@@ -19,6 +22,54 @@ export const ruPatterns: IntentPattern[] = [
     intent: 'UNDO',
     pattern: /отмен|верни(?!\s+цвет)(?!\s+текст)|отменить|назад(?!.*элемент)/i,
     extractSlots: () => ({}),
+  },
+
+  // --- Группировка ---
+  {
+    intent: 'UNGROUP_ELEMENT',
+    pattern: /разгруппир|расформир.*групп|разбей.*групп|убери.*из\s+групп/i,
+    extractSlots: () => ({}),
+  },
+  {
+    intent: 'GROUP_ELEMENTS',
+    pattern: /сгруппир|группир.*элемент|объедини.*групп/i,
+    extractSlots: (text) => {
+      const slots: ReturnType<IntentPattern['extractSlots']> = {}
+      const size = normalizeGroupSize(text, 'ru')
+      if (size !== undefined) slots.groupSize = size
+      return slots
+    },
+  },
+
+  // --- Дублирование ---
+  {
+    intent: 'DUPLICATE_ELEMENT',
+    pattern: /дублир|клонир|скопир|сделай\s+копию/i,
+    extractSlots: () => ({}),
+  },
+
+  // --- Перемещение ---
+  {
+    intent: 'MOVE_ELEMENT',
+    pattern: /подвинь|передвинь|перемест|сдвинь|переставь/i,
+    extractSlots: (text) => {
+      const slots: ReturnType<IntentPattern['extractSlots']> = {}
+      const dir = normalizeMoveDirection(text, 'ru')
+      if (dir) slots.moveDirection = dir
+      return slots
+    },
+  },
+
+  // --- Стили-пресеты ---
+  {
+    intent: 'APPLY_STYLE_PRESET',
+    pattern: /(оформи|стил[ьеяю]?).*?(заголов\w*|акцент\w*|приглуш\w*|тускл\w*|неприметн\w*|выделен\w*|подсвет\w*)/i,
+    extractSlots: (text) => {
+      const slots: ReturnType<IntentPattern['extractSlots']> = {}
+      const preset = normalizeStylePreset(text, 'ru')
+      if (preset) slots.stylePreset = preset
+      return slots
+    },
   },
 
   // --- Форматирование шрифта ---

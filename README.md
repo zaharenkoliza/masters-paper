@@ -32,6 +32,8 @@
 | Компоненты | Mantine v7 |
 | Состояние | Zustand |
 | Распознавание речи | Web Speech API (встроен в Chrome) |
+| NLU (быстрый путь) | RegExp-паттерны (~0 мс) |
+| NLU (fallback) | `@xenova/transformers` — `paraphrase-multilingual-MiniLM-L12-v2` (WASM, quantized) |
 | Backend | — (статика, нет сервера) |
 
 ---
@@ -42,9 +44,11 @@
 src/
 ├── core/                    # Чистый TypeScript — нет зависимостей от React/Mantine
 │   ├── asr/                 # SpeechRecognizer — обёртка над Web Speech API
-│   ├── nlu/                 # IntentMatcher — parseIntent(text, lang) → ParseResult
+│   ├── nlu/                 # IntentMatcher — parseIntentAsync(text, lang) → ParseResult
 │   │   ├── patterns/        # RU и EN паттерны (RegExp + SlotExtractor)
-│   │   └── normalizers.ts   # Нормализация цвета, типа элемента, индекса
+│   │   ├── normalizers.ts   # Нормализация цвета, типа элемента, индекса
+│   │   ├── IntentMatcher.ts # parseIntent (regex, sync) + parseIntentAsync (cascade)
+│   │   └── TransformerFallback.ts  # @xenova/transformers, косинусное сходство, кэш эмбеддингов
 │   ├── editor/              # EditorEngine — чистые функции над EditorState
 │   │   ├── EditorEngine.ts  # add, changeColor, changeText, changeSize, ...
 │   │   ├── ElementFactory.ts
@@ -81,14 +85,21 @@ src/
 
 2. **Однонаправленный поток данных:**
    ```
-   Голос → SpeechRecognizer → IntentMatcher → EditorEngine → Zustand → React UI
-                                                           ↓
-                                                     SessionLogger
+   Голос → SpeechRecognizer → parseIntentAsync → EditorEngine → Zustand → React UI
+                                    │                               ↓
+                               regex (0 мс)                  SessionLogger
+                                    │ OOD?
+                              TransformerFallback
+                           (paraphrase-MiniLM, ~100 мс)
    ```
 
 3. **Иммутабельное состояние редактора.** `EditorEngine` принимает `EditorState` и возвращает новый `EditorState`. `UndoManager` — просто стек снапшотов.
 
 4. **`experiment/` изолирован от `core/`.** Продукт работает без экспериментального режима. Логирование подключается снаружи через события, не встроено в бизнес-логику.
+
+5. **Каскадный NLU.** `parseIntentAsync` сначала пробует regex (детерминированный, 0 мс, `confidence = 1`, `detectedVia: 'regex'`). Трансформер загружается лениво и подключается только если regex не сработал. После разогрева — ~100–300 мс. Модель кэширует эмбеддинги эталонных фраз в памяти на весь сеанс.
+
+   Скор косинусного сходства трансформера сам по себе ненадёжен как граница между «понятно» и «непонятно» — посторонние фразы нередко получают более высокий скор, чем настоящие команды редактора (см. `TransformerFallback.ts`). Поэтому: ниже порога `SIMILARITY_THRESHOLD` (0.52) фраза считается вне домена (`detectedVia: 'ood'`, тост «Команда не распознана»), а **выше порога — никогда не выполняется автоматически**: каскад всегда переспрашивает («Вы имели в виду…?», `detectedVia: 'clarify'`) и ждёт голосового подтверждения «да»/«нет» (`confirmationMatcher.ts`). Любая ошибка загрузки/инференса модели (сеть, WASM, кэш) перехватывается и трактуется как `OUT_OF_DOMAIN` — пользователь в любом случае получает видимую и озвученную реакцию, а не тишину.
 
 ---
 
@@ -114,6 +125,15 @@ src/
 | «Сделай жирным» | «Make bold» |
 | «Сделай курсивом» | «Make italic» |
 | «Выровняй по центру» | «Align center» |
+| «Примени стиль заголовка / акцент / приглушённый / выделение» | «Apply heading / accent / subtle / highlight style» |
+
+### Перемещение, дублирование, группировка
+| Русский | English |
+|---|---|
+| «Перемести влево / вправо / в начало / в конец» | «Move left / right / to start / to end» |
+| «Продублируй элемент» | «Duplicate the element» |
+| «Сгруппируй последние два элемента» | «Group the last two elements» |
+| «Разгруппируй элемент» | «Ungroup the element» |
 
 ### Навигация
 | Русский | English |
@@ -123,6 +143,27 @@ src/
 | «Удали» | «Delete» |
 | «Отмена» | «Undo» |
 | «Очисти всё» | «Clear all» |
+
+### Составные команды
+Несколько действий в одной фразе через «и» / «затем» / запятую — каждый сегмент распознаётся независимо:
+
+| Русский | English |
+|---|---|
+| «Добавь кнопку и сделай её синей» | «Add a button and make it blue» |
+| «Выбери заголовок, увеличь и сделай жирным» | «Select the heading, make it bigger and bold» |
+
+### Уточнение неясных команд («вы имели в виду…?»)
+Если каскад распознал фразу, но недостаточно уверенно (скор трансформера ниже порога автоматического выполнения), система не выполняет действие молча — она переспрашивает и ждёт подтверждения голосом:
+
+```
+Пользователь: «сделай так чтобы было хорошо»
+Система:      «Уточнение: Вы имели в виду — изменить размер? Скажите «да» или «нет»
+
+Пользователь: «нет»
+Система:      команда отменена, действие не выполняется
+```
+
+Подтверждение распознаётся коротким ответом — «да/ага/точно/именно» / «нет/не то/отмена» (RU), «yes/yeah/correct» / «no/nope/cancel» (EN). Любой другой ответ трактуется как новая команда.
 
 ### Горячие клавиши
 | Клавиша | Действие |
@@ -201,7 +242,10 @@ type LogEntry = {
   rawTranscript: string      // Текст из Web Speech API
   latencyMs: number
   detectedIntent: string     // Распознанный интент
+  detectedVia: 'regex' | 'clarify' | 'ood'  // Источник классификации
   extractedSlots: object     // Извлечённые слоты
+  confidence: number         // 1.0 для regex, косинусное сходство для transformer
+  transformerScore: number | null  // Сырой скор модели (null для regex-пути)
   wer: number                // Word Error Rate [0, 1]
   referenceText: string      // Эталонная фраза для WER
   actionResult: 'success' | 'fail' | 'ood'

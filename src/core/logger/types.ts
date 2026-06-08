@@ -24,7 +24,7 @@ export type LogEntry = {
 
   // NLU
   detectedIntent: KnownIntent | 'OUT_OF_DOMAIN'
-  detectedVia: 'regex' | 'transformer' | 'ood'
+  detectedVia: 'regex' | 'clarify' | 'ood'
   extractedSlots: Partial<Slots>
   missedSlots: (keyof Slots)[]
   confidence: number

@@ -15,6 +15,11 @@ const ANNOUNCE_RU: Record<KnownIntent, string> = {
   SELECT_ELEMENT: 'Элемент выбран',
   UNDO: 'Действие отменено',
   CLEAR_ALL: 'Холст очищен',
+  DUPLICATE_ELEMENT: 'Элемент продублирован',
+  MOVE_ELEMENT: 'Элемент перемещён',
+  APPLY_STYLE_PRESET: 'Стиль применён',
+  GROUP_ELEMENTS: 'Элементы сгруппированы',
+  UNGROUP_ELEMENT: 'Группа разобрана',
 }
 
 const ANNOUNCE_EN: Record<KnownIntent, string> = {
@@ -29,6 +34,11 @@ const ANNOUNCE_EN: Record<KnownIntent, string> = {
   SELECT_ELEMENT: 'Element selected',
   UNDO: 'Action undone',
   CLEAR_ALL: 'Canvas cleared',
+  DUPLICATE_ELEMENT: 'Element duplicated',
+  MOVE_ELEMENT: 'Element moved',
+  APPLY_STYLE_PRESET: 'Style applied',
+  GROUP_ELEMENTS: 'Elements grouped',
+  UNGROUP_ELEMENT: 'Group disbanded',
 }
 
 type Props = {

@@ -5,9 +5,17 @@ import {
   normalizeSizeDirection,
   normalizeIndex,
   normalizeTextAlign,
+  normalizeMoveDirection,
+  normalizeStylePreset,
+  normalizeGroupSize,
   extractTextContent,
 } from './normalizers'
 
+// Ниже этого порога считаем фразу вне домена редактора. Само по себе косинусное
+// сходство к лучшему примеру не отделяет «понятные» команды от «непонятных» —
+// посторонние фразы нередко получают более высокий скор, чем настоящие команды
+// (см. тестовые прогоны). Поэтому НИКАКОЙ скор трансформера не считается
+// достаточным для автоматического выполнения — выше порога всегда уточняем
 const SIMILARITY_THRESHOLD = 0.52
 
 // Эталонные фразы для семантического сравнения
@@ -55,6 +63,26 @@ const INTENT_EXAMPLES: Record<KnownIntent, Record<SupportedLang, string[]>> = {
   CLEAR_ALL: {
     ru: ['очисти всё', 'удали всё', 'начни заново', 'сброс', 'удалить все элементы'],
     en: ['clear all', 'delete everything', 'start over', 'reset', 'remove all elements'],
+  },
+  DUPLICATE_ELEMENT: {
+    ru: ['продублируй элемент', 'сделай копию', 'скопируй кнопку', 'клонируй блок', 'дублируй это'],
+    en: ['duplicate this', 'make a copy', 'clone the button', 'copy this element', 'duplicate it'],
+  },
+  MOVE_ELEMENT: {
+    ru: ['подвинь влево', 'передвинь вправо', 'перемести в начало', 'сдвинь в конец', 'переставь правее'],
+    en: ['move it left', 'shift right', 'move to the start', 'move to the end', 'reposition it'],
+  },
+  APPLY_STYLE_PRESET: {
+    ru: ['оформи как заголовок', 'примени стиль акцент', 'сделай в приглушённом стиле', 'выделенный стиль', 'стиль выделения'],
+    en: ['style it as a heading', 'apply the accent style', 'make it subtle', 'use highlight style', 'format as a title'],
+  },
+  GROUP_ELEMENTS: {
+    ru: ['сгруппируй последние два элемента', 'объедини их в группу', 'сгруппируй элементы', 'группировать выбранные', 'собери в группу'],
+    en: ['group the last two elements', 'combine them into a group', 'group these elements', 'group them together', 'create a group'],
+  },
+  UNGROUP_ELEMENT: {
+    ru: ['разгруппируй элемент', 'убери из группы', 'разбей группу', 'расформируй группу', 'разъедини элементы'],
+    en: ['ungroup this', 'remove it from the group', 'break the group', 'disband the group', 'split the group'],
   },
 }
 
@@ -154,6 +182,18 @@ function extractSlots(text: string, intent: KnownIntent, lang: SupportedLang): P
       const idx = normalizeIndex(text, lang); if (idx !== undefined) s.index = idx
       break
     }
+    case 'MOVE_ELEMENT': {
+      const dir = normalizeMoveDirection(text, lang); if (dir) s.moveDirection = dir
+      break
+    }
+    case 'APPLY_STYLE_PRESET': {
+      const preset = normalizeStylePreset(text, lang); if (preset) s.stylePreset = preset
+      break
+    }
+    case 'GROUP_ELEMENTS': {
+      const size = normalizeGroupSize(text, lang); if (size !== undefined) s.groupSize = size
+      break
+    }
   }
   return s
 }
@@ -184,13 +224,9 @@ export async function inferWithTransformer(
     return { intent: 'OUT_OF_DOMAIN', slots: {}, confidence: 0, detectedVia: 'ood', transformerScore: bestScore }
   }
 
-  return {
-    intent: bestIntent,
-    slots: extractSlots(text, bestIntent, lang),
-    confidence: bestScore,
-    detectedVia: 'transformer',
-    transformerScore: bestScore,
-  }
+  const slots = extractSlots(text, bestIntent, lang)
+
+  return { intent: bestIntent, slots, confidence: bestScore, detectedVia: 'clarify', transformerScore: bestScore }
 }
 
 // Вызывается при старте приложения для фоновой загрузки модели

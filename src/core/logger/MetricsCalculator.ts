@@ -14,6 +14,11 @@ const REFERENCE: Record<KnownIntent, Record<SupportedLang, string>> = {
   SELECT_ELEMENT:    { ru: 'выбери первый',          en: 'select first' },
   UNDO:              { ru: 'отмена',                 en: 'undo' },
   CLEAR_ALL:         { ru: 'очисти всё',             en: 'clear all' },
+  DUPLICATE_ELEMENT: { ru: 'продублируй',            en: 'duplicate' },
+  MOVE_ELEMENT:      { ru: 'подвинь влево',          en: 'move left' },
+  APPLY_STYLE_PRESET:{ ru: 'оформи как заголовок',   en: 'style as heading' },
+  GROUP_ELEMENTS:    { ru: 'сгруппируй',             en: 'group elements' },
+  UNGROUP_ELEMENT:   { ru: 'разгруппируй',           en: 'ungroup' },
 }
 
 export function getReferenceText(intent: KnownIntent, lang: SupportedLang): string {

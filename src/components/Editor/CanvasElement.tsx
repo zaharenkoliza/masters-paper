@@ -12,12 +12,17 @@ export function CanvasElement({ element, isSelected, onClick }: Props) {
     ? { outline: '2px solid var(--mantine-color-blue-5)', outlineOffset: 2 }
     : {}
 
+  const groupStyle = element.groupId
+    ? { boxShadow: '0 0 0 2px var(--mantine-color-teal-4)', borderRadius: 4 }
+    : {}
+
   const commonStyle = {
     cursor: 'pointer',
     fontWeight: element.fontWeight,
     fontStyle: element.fontStyle,
     textAlign: element.textAlign,
     fontSize: element.fontSize,
+    ...groupStyle,
     ...outlineStyle,
   } as const
 
@@ -49,7 +54,7 @@ export function CanvasElement({ element, isSelected, onClick }: Props) {
 
     case 'input':
       return (
-        <Box onClick={onClick} style={outlineStyle}>
+        <Box onClick={onClick} style={{ ...groupStyle, ...outlineStyle }}>
           <TextInput
             placeholder={element.text || 'Поле ввода'}
             readOnly

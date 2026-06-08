@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { EditorState, CanvasElement, ElementType } from '../core/editor/types'
-import type { Slots } from '../core/nlu/types'
+import type { Slots, StylePreset } from '../core/nlu/types'
 import {
   addElement,
   changeColor,
@@ -15,6 +15,9 @@ import {
   changeTextAlign,
   duplicateElement,
   moveElement,
+  applyStylePreset,
+  groupElements,
+  ungroupElement,
 } from '../core/editor/EditorEngine'
 import { UndoManager } from '../core/editor/UndoManager'
 import { INITIAL_EDITOR_STATE } from '../core/editor/types'
@@ -35,7 +38,10 @@ type EditorStore = EditorState & {
   changeTextAlign: (elementId: string, align: 'left' | 'center' | 'right') => void
   deleteElement: (elementId: string) => void
   duplicateElement: (elementId: string) => void
-  moveElement: (elementId: string, direction: 'left' | 'right') => void
+  moveElement: (elementId: string, direction: 'left' | 'right' | 'start' | 'end') => void
+  applyStylePreset: (elementId: string, preset: StylePreset) => void
+  groupElements: (count: number) => void
+  ungroupElement: (elementId: string) => void
   selectElement: (id: string | null) => void
   selectByIndex: (type: ElementType | undefined, index: number | 'first' | 'last') => void
   clearAll: () => void
@@ -75,6 +81,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   moveElement: (elementId, direction) =>
     set((s) => { undoManager.push(snapshot(s)); return moveElement(s, elementId, direction) }),
+
+  applyStylePreset: (elementId, preset) =>
+    set((s) => { undoManager.push(snapshot(s)); return applyStylePreset(s, elementId, preset) }),
+
+  groupElements: (count) =>
+    set((s) => { undoManager.push(snapshot(s)); return groupElements(s, count) }),
+
+  ungroupElement: (elementId) =>
+    set((s) => { undoManager.push(snapshot(s)); return ungroupElement(s, elementId) }),
 
   selectElement: (id) =>
     set((s) => selectElement(s, id)),

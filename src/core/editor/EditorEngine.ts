@@ -1,5 +1,5 @@
 import type { EditorState, CanvasElement, ElementType } from './types'
-import type { Slots } from '../nlu/types'
+import type { Slots, StylePreset } from '../nlu/types'
 import { createElement } from './ElementFactory'
 
 function mapElement(
@@ -110,6 +110,7 @@ export function duplicateElement(state: EditorState, elementId: string): EditorS
   const copy: CanvasElement = {
     ...source,
     id: `${source.type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    groupId: null,
     createdAt: Date.now(),
   }
   return {
@@ -121,12 +122,21 @@ export function duplicateElement(state: EditorState, elementId: string): EditorS
 export function moveElement(
   state: EditorState,
   elementId: string,
-  direction: 'left' | 'right',
+  direction: 'left' | 'right' | 'start' | 'end',
 ): EditorState {
   const idx = state.elements.findIndex((el) => el.id === elementId)
   if (idx === -1) return state
 
   const els = [...state.elements]
+
+  if (direction === 'start' || direction === 'end') {
+    const targetIdx = direction === 'start' ? 0 : els.length - 1
+    if (idx === targetIdx) return state
+    const [el] = els.splice(idx, 1)
+    els.splice(targetIdx, 0, el!)
+    return { ...state, elements: els }
+  }
+
   const targetIdx = direction === 'left' ? idx - 1 : idx + 1
   if (targetIdx < 0 || targetIdx >= els.length) return state
 
@@ -135,4 +145,39 @@ export function moveElement(
   els[idx] = els[targetIdx]!
   els[targetIdx] = tmp
   return { ...state, elements: els }
+}
+
+const STYLE_PRESETS: Record<StylePreset, Partial<Pick<CanvasElement, 'color' | 'fontSize' | 'fontWeight' | 'fontStyle' | 'textAlign'>>> = {
+  heading: { fontSize: 28, fontWeight: 'bold' },
+  accent: { color: '#3b82f6', fontWeight: 'bold' },
+  subtle: { color: '#6b7280', fontSize: 12, fontWeight: 'normal' },
+  highlight: { color: '#eab308', fontWeight: 'bold' },
+}
+
+export function applyStylePreset(
+  state: EditorState,
+  elementId: string,
+  preset: StylePreset,
+): EditorState {
+  return mapElement(state, elementId, (el) => ({ ...el, ...STYLE_PRESETS[preset] }))
+}
+
+export function groupElements(state: EditorState, count: number): EditorState {
+  if (count < 2 || count > state.elements.length) return state
+  const groupId = `group-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  const cut = state.elements.length - count
+  return {
+    ...state,
+    elements: state.elements.map((el, i) => (i >= cut ? { ...el, groupId } : el)),
+  }
+}
+
+export function ungroupElement(state: EditorState, elementId: string): EditorState {
+  const target = state.elements.find((el) => el.id === elementId)
+  if (!target?.groupId) return state
+  const { groupId } = target
+  return {
+    ...state,
+    elements: state.elements.map((el) => (el.groupId === groupId ? { ...el, groupId: null } : el)),
+  }
 }

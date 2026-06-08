@@ -21,6 +21,11 @@ const INTENT_LABELS: Record<string, string> = {
   SELECT_ELEMENT:     'Выбрать',
   UNDO:               'Отмена',
   CLEAR_ALL:          'Очистить всё',
+  DUPLICATE_ELEMENT:  'Дублировать',
+  MOVE_ELEMENT:       'Переместить',
+  APPLY_STYLE_PRESET: 'Стиль-пресет',
+  GROUP_ELEMENTS:     'Группировать',
+  UNGROUP_ELEMENT:    'Разгруппировать',
   OUT_OF_DOMAIN:      'Не распознано',
 }
 
@@ -60,21 +65,21 @@ export function TranscriptDisplay({ transcript, interimTranscript, parseResult, 
             {INTENT_LABELS[parseResult.intent] ?? parseResult.intent}
           </Badge>
 
-          {/* Источник: regex или трансформер */}
+          {/* Источник: regex или трансформер (требует подтверждения) */}
           {parseResult.intent !== 'OUT_OF_DOMAIN' && (
             <Badge
-              color={parseResult.detectedVia === 'transformer' ? 'violet' : 'gray'}
+              color={parseResult.detectedVia === 'clarify' ? 'orange' : 'gray'}
               variant="outline"
               size="sm"
               leftSection={
-                parseResult.detectedVia === 'transformer'
-                  ? <IconBrain size={10} />
-                  : <IconCode size={10} />
+                parseResult.detectedVia === 'regex'
+                  ? <IconCode size={10} />
+                  : <IconBrain size={10} />
               }
             >
-              {parseResult.detectedVia === 'transformer'
-                ? `NLP ${Math.round((parseResult as { transformerScore: number }).transformerScore * 100)}%`
-                : 'regex'}
+              {parseResult.detectedVia === 'regex'
+                ? 'regex'
+                : `NLP ${Math.round(parseResult.transformerScore * 100)}% · уточнение`}
             </Badge>
           )}
 

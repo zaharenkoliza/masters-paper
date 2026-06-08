@@ -21,6 +21,7 @@ import { useSessionStore } from './store/sessionStore'
 import { MicButton } from './components/Voice/MicButton'
 import { TranscriptDisplay } from './components/Voice/TranscriptDisplay'
 import { CommandToast } from './components/Voice/CommandToast'
+import { ClarificationPrompt } from './components/Voice/ClarificationPrompt'
 import { Workspace } from './components/Editor/Workspace'
 import { ElementControls } from './components/Editor/ElementControls'
 import { AriaLiveRegion } from './components/Accessibility/AriaLiveRegion'
@@ -41,6 +42,7 @@ export function App() {
     lastTranscript,
     lastParseResult,
     lastCommandFeedback,
+    clarification,
     isSupported,
     toggle,
   } = useVoiceCommand(lang)
@@ -199,6 +201,8 @@ export function App() {
       {/* Experiment modals */}
       <OnboardingModal />
       <SessionSummary />
+
+      <ClarificationPrompt clarification={clarification} lang={lang} />
 
       {/* Feedback */}
       {lastCommandFeedback && (

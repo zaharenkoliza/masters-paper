@@ -8,7 +8,9 @@ export function useEditorActions() {
   const store = useEditorStore()
 
   function dispatchIntent(intent: KnownIntent, slots: Partial<Slots>): ActionResult {
-    const selectedId = store.selectedId
+    // Читаем выделенный элемент заново (не из снимка рендера) — в составной
+    // команде предыдущий сегмент мог только что изменить выделение
+    const selectedId = useEditorStore.getState().selectedId
 
     switch (intent) {
       case 'ADD_ELEMENT': {
@@ -72,6 +74,36 @@ export function useEditorActions() {
 
       case 'CLEAR_ALL': {
         store.clearAll()
+        return 'success'
+      }
+
+      case 'DUPLICATE_ELEMENT': {
+        if (!selectedId) return 'fail'
+        store.duplicateElement(selectedId)
+        return 'success'
+      }
+
+      case 'MOVE_ELEMENT': {
+        if (!selectedId || !slots.moveDirection) return 'fail'
+        store.moveElement(selectedId, slots.moveDirection)
+        return 'success'
+      }
+
+      case 'APPLY_STYLE_PRESET': {
+        if (!selectedId || !slots.stylePreset) return 'fail'
+        store.applyStylePreset(selectedId, slots.stylePreset)
+        return 'success'
+      }
+
+      case 'GROUP_ELEMENTS': {
+        if (!slots.groupSize || slots.groupSize < 2) return 'fail'
+        store.groupElements(slots.groupSize)
+        return 'success'
+      }
+
+      case 'UNGROUP_ELEMENT': {
+        if (!selectedId) return 'fail'
+        store.ungroupElement(selectedId)
         return 'success'
       }
     }

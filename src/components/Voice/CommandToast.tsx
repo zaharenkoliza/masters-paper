@@ -16,6 +16,11 @@ const INTENT_RU: Record<KnownIntent, string> = {
   SELECT_ELEMENT: 'Элемент выбран',
   UNDO: 'Действие отменено',
   CLEAR_ALL: 'Холст очищен',
+  DUPLICATE_ELEMENT: 'Элемент продублирован',
+  MOVE_ELEMENT: 'Элемент перемещён',
+  APPLY_STYLE_PRESET: 'Стиль применён',
+  GROUP_ELEMENTS: 'Элементы сгруппированы',
+  UNGROUP_ELEMENT: 'Группа разобрана',
 }
 
 type Props = {

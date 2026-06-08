@@ -11,6 +11,7 @@ export type CanvasElement = {
   fontWeight: 'bold' | 'normal'
   fontStyle: 'italic' | 'normal'
   textAlign: 'left' | 'center' | 'right'
+  groupId: string | null
   createdAt: number
 }
 

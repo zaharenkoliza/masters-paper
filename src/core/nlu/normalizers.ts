@@ -109,6 +109,72 @@ export function normalizeTextAlign(
   return undefined
 }
 
+export function normalizeMoveDirection(
+  text: string,
+  lang: 'ru' | 'en',
+): Slots['moveDirection'] | undefined {
+  if (lang === 'ru') {
+    if (/в\s+начало|на\s+первое\s+место|в\s+самый\s+верх/i.test(text)) return 'start'
+    if (/в\s+конец|на\s+последнее\s+место|в\s+самый\s+низ/i.test(text)) return 'end'
+    if (/влево|налево|левее/i.test(text)) return 'left'
+    if (/вправо|направо|правее/i.test(text)) return 'right'
+  } else {
+    if (/\bto\s+(the\s+)?(start|beginning|front)\b/i.test(text)) return 'start'
+    if (/\bto\s+(the\s+)?(end|back)\b/i.test(text)) return 'end'
+    if (/\bleft\b/i.test(text)) return 'left'
+    if (/\bright\b/i.test(text)) return 'right'
+  }
+  return undefined
+}
+
+const RU_PRESETS: [RegExp, Slots['stylePreset']][] = [
+  [/заголов/i, 'heading'],
+  [/акцент/i, 'accent'],
+  [/приглуш|тусклы|неприметн/i, 'subtle'],
+  [/выделен|подсвет/i, 'highlight'],
+]
+
+const EN_PRESETS: [RegExp, Slots['stylePreset']][] = [
+  [/\bheading\b|\btitle\b/i, 'heading'],
+  [/\baccent\b/i, 'accent'],
+  [/\bsubtle\b|\bmuted\b/i, 'subtle'],
+  [/\bhighlight\b/i, 'highlight'],
+]
+
+export function normalizeStylePreset(text: string, lang: 'ru' | 'en'): Slots['stylePreset'] | undefined {
+  const table = lang === 'ru' ? RU_PRESETS : EN_PRESETS
+  for (const [rx, preset] of table) {
+    if (rx.test(text)) return preset
+  }
+  return undefined
+}
+
+const RU_NUMBER_WORDS: Record<string, number> = {
+  два: 2, две: 2, двух: 2,
+  три: 3, трёх: 3, трех: 3,
+  четыре: 4, четырёх: 4, четырех: 4,
+  пять: 5, пяти: 5,
+}
+
+const EN_NUMBER_WORDS: Record<string, number> = {
+  two: 2, three: 3, four: 4, five: 5,
+}
+
+export function normalizeGroupSize(text: string, lang: 'ru' | 'en'): number | undefined {
+  const digitMatch = text.match(/\d+/)
+  if (digitMatch) return parseInt(digitMatch[0], 10)
+
+  const table = lang === 'ru' ? RU_NUMBER_WORDS : EN_NUMBER_WORDS
+  for (const [word, value] of Object.entries(table)) {
+    // \b не распознаёт границы слов на кириллице (буквы вне \w) — используем лукэраунды
+    const re = lang === 'ru'
+      ? new RegExp(`(?<![а-яёА-ЯЁ])${word}(?![а-яёА-ЯЁ])`, 'i')
+      : new RegExp(`\\b${word}\\b`, 'i')
+    if (re.test(text)) return value
+  }
+  return undefined
+}
+
 export function extractTextContent(text: string): string | undefined {
   // Between quotes «» or ""
   const quoted = text.match(/[«""](.+?)[»""]/u)
